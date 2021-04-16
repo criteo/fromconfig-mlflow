@@ -8,6 +8,7 @@ import tempfile
 from pathlib import Path
 import json
 from typing import Any
+import os
 
 import mlflow
 import fromconfig
@@ -31,6 +32,7 @@ class MlFlowLauncher(fromconfig.launcher.LogLauncher):
         # Setup experiment and general MlFlow parameters
         if tracking_uri is not None:
             mlflow.set_tracking_uri(tracking_uri)
+            os.environ["MLFLOW_TRACKING_URI"] = tracking_uri
         if experiment_name is not None:
             if mlflow.get_experiment_by_name(experiment_name) is None:
                 mlflow.create_experiment(self.experiment_name, artifact_location=artifact_location)
@@ -38,7 +40,8 @@ class MlFlowLauncher(fromconfig.launcher.LogLauncher):
 
         # Start MlFlow run, log information and launch
         with mlflow.start_run(run_id=run_id, run_name=run_name) as run:
-            # Log run information
+            # Log run information and set environment variable
+            os.environ["MLFLOW_RUN_ID"] = run.info.run_id
             url = f"{mlflow.get_tracking_uri()}/experiments/{run.info.experiment_id}/runs/{run.info.run_id}"
             LOGGER.info(f"MlFlow URL: {url}")
 
