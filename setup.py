@@ -28,7 +28,7 @@ if __name__ == "__main__":
         dependency_links=[],
         description=long_description.split("\n")[0],
         install_requires=["fromconfig", "mlflow"],
-        entry_points={"fromconfig0": ["mlflow = fromconfig_mlflow:MlFlowPlugin"]},
+        entry_points={"fromconfig0": ["mlflow = fromconfig_mlflow"]},
         long_description=long_description,
         long_description_content_type="text/markdown",
         name="fromconfig-mlflow",
