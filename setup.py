@@ -7,7 +7,7 @@ import setuptools
 
 if __name__ == "__main__":
     # Read metadata from version.py
-    with Path("fromconfig_mlflow.py").open(encoding="utf-8") as file:
+    with Path("fromconfig_mlflow/version.py").open(encoding="utf-8") as file:
         metadata = dict(re.findall(r'__([a-z]+)__\s*=\s*"([^"]+)"', file.read()))
 
     # Read description from README
@@ -31,7 +31,7 @@ if __name__ == "__main__":
         entry_points={"fromconfig0": ["mlflow = fromconfig_mlflow"]},
         long_description=long_description,
         long_description_content_type="text/markdown",
-        name="fromconfig-mlflow",
+        name="fromconfig_mlflow",
         packages=setuptools.find_packages(),
         tests_require=["pytest"],
         version=metadata["version"],

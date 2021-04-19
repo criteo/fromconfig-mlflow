@@ -7,16 +7,21 @@ install-dev: ## [Local development] Install test requirements
 	python -m pip install -r requirements-test.txt
 
 lint: ## [Local development] Run mypy, pylint and black
-	python -m mypy fromconfig-mlflow
-	python -m pylint fromconfig-mlflow
-	python -m black --check -l 120 fromconfig-mlflow
+	python -m mypy fromconfig_mlflow
+	python -m pylint fromconfig_mlflow
+	python -m black --check -l 120 fromconfig_mlflow
 
 black: ## [Local development] Auto-format python code using black
 	python -m black -l 120 .
 
 test: ## [Local development] Run unit tests, doctest and notebooks
-	python -m pytest -v --cov=fromconfig-mlflow --cov-report term-missing --cov-fail-under 95 tests/unit
-	python -m pytest --doctest-modules -v fromconfig-mlflow
+	python -m pytest -v --cov=fromconfig_mlflow --cov-report term-missing --cov-fail-under 95 tests/unit
+	python -m pytest --doctest-modules -v fromconfig_mlflow
+	$(MAKE) examples
+
+examples:  ## [Doc] Run all examples
+	cd docs/examples/quickstart && fromconfig config.yaml params.yaml launcher.yaml - model - train
+	cd docs/examples/multi && fromconfig config.yaml params.yaml launcher.yaml - model - train
 
 venv-lint-test: ## [Continuous integration] Install in venv and run lint and test
 	python3.6 -m venv .env && . .env/bin/activate && make install install-dev lint test && rm -rf .env
