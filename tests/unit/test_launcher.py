@@ -1,9 +1,10 @@
 """Test launcher."""
 
-import fromconfig
-import pytest
-import functools
 import collections
+import functools
+
+import pytest
+import fromconfig
 
 import fromconfig_mlflow
 
