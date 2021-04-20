@@ -17,6 +17,7 @@ if __name__ == "__main__":
     # Run setup
     setuptools.setup(
         author=metadata["author"],
+        version=metadata["version"],
         classifiers=[
             "License :: OSI Approved :: Apache Software License",
             "Operating System :: OS Independent",
@@ -27,12 +28,12 @@ if __name__ == "__main__":
         data_files=[(".", ["requirements.txt", "README.md"])],
         dependency_links=[],
         description=long_description.split("\n")[0],
-        install_requires=["fromconfig>=0.3", "mlflow"],
         entry_points={"fromconfig0": ["mlflow = fromconfig_mlflow"]},
+        install_requires=["fromconfig>=0.3", "mlflow"],
         long_description=long_description,
         long_description_content_type="text/markdown",
         name="fromconfig_mlflow",
         packages=setuptools.find_packages(),
         tests_require=["pytest"],
-        version=metadata["version"],
+        url="https://github.com/guillaumegenthial/fromconfig-mlflow",
     )
