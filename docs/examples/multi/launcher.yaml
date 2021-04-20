@@ -1,5 +1,8 @@
 mlflow:
   # tracking_uri: "http://127.0.0.1:5000"
+  # experiment_name: "test-experiment"
+  # run_name: test
+  # artifact_location: "path/to/artifacts"
   launches:
     -
       log_artifacts: true
@@ -11,8 +14,10 @@ mlflow:
       log_parameters: true
       path_config: "parsed.json"
       path_command: "launch_parsed.json"
+
 logging:
   level: 20
+
 launcher:
   parse:
     - mlflow
