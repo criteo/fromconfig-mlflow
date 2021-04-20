@@ -7,6 +7,7 @@ import pytest
 import fromconfig
 
 import fromconfig_mlflow
+from fromconfig_mlflow.launcher import get_params
 
 
 def test_launcher_is_discovered():
@@ -54,7 +55,7 @@ def test_launcher_is_discovered():
         ),
         pytest.param(
             {"log": ["mlflow", "mlflow"]},
-            {"run_name": "test", "launches": [{"log_param": True}, {"log_param": True}]},
+            {"run_name": "test", "launches": [{"log_parameters": True}, {"log_parameters": True}]},
             {"start_run": {"kwargs": {"run_name": "test"}}},
             {"start_run": 1, "log_artifacts": 1},
             id="no-duplicate-log-artifacts",
@@ -68,7 +69,7 @@ def test_launcher(launcher, params, expected, counts, monkeypatch):
     # Setup monkey patching to track MlFlow calls
     got = {}
     counter = collections.Counter()
-    names = ["log_artifacts", "log_param", "start_run"]
+    names = ["log_artifacts", "log_params", "start_run"]
     for name in names:
         func = getattr(mlflow, name)
 
@@ -99,3 +100,23 @@ def test_launcher(launcher, params, expected, counts, monkeypatch):
 
     # Check that kwargs / args match expectations
     _check_expected(expected, got)
+
+
+@pytest.mark.parametrize(
+    "params, ignore_keys, include_keys, expected",
+    [
+        pytest.param({"foo": 0}, None, None, [("foo", 0)], id="default"),
+        pytest.param({"foo": 0, "bar": 1}, None, None, [("foo", 0), ("bar", 1)], id="default-multi"),
+        pytest.param({"foo": 0}, (), (), [("foo", 0)], id="default-empty-tuple"),
+        pytest.param({"foo": 0}, (), ("foo",), [("foo", 0)], id="include"),
+        pytest.param({"foo": 0, "bar": 1}, (), ("foo",), [("foo", 0)], id="include-multi"),
+        pytest.param({"foo": 0}, ("foo",), (), [], id="ignore"),
+        pytest.param({"foo": 0, "bar": 1}, ("foo",), (), [("bar", 1)], id="ignore-multi"),
+        pytest.param(
+            {"foo": {"bar": {"bar": 0}}, "bar": 1}, (), ("bar",), [("bar.bar", 0), ("bar", 1)], id="include-conflict"
+        ),
+    ],
+)
+def test_get_params(params, ignore_keys, include_keys, expected):
+    """Test log param."""
+    assert get_params(params, ignore_keys, include_keys) == expected

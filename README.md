@@ -127,6 +127,8 @@ The `launches` key should be a list of dictionaries with the following parameter
 - `log_parameters`: if `True` (default) will log a flattened view of the parameters
 - `path_config`: if given, will write the config as an artifact with that name (default is `config.json`)
 - `path_command`: if given, will write the command as an artifact with that name (default is `launch.txt`, using the `.txt` extension because you can preview it on MlFlow).
+- `include_keys`: if given, only log flattened parameters that have one of these keys as substring. Also shorten the flattened parameter to start at the first match. For example, if the config is `{"foo": {"bar": 1}}` and `include_keys=("bar",)`, then the logged parameter will be `"bar"`.
+- `ignore_keys`: if given, parameters that have at least one of the keys as substring will be ignored.
 
 See [the multi example](#multi).
 

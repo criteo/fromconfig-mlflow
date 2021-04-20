@@ -48,6 +48,13 @@ class MlFlowLauncher(fromconfig.launcher.Launcher):
     - `path_command`: if given, will write the command as an artifact
       with that name (default is `launch.txt`, using the `.txt`
       extension because you can preview it on MlFlow).
+    - `include_keys`: if given, only log flattened parameters that have
+      one of these keys as substring. Also shorten the flattened
+      parameter to start at the first match. For example, if the config
+      is `{"foo": {"bar": 1}}` and `include_keys=("bar",)`, then the
+      logged parameter will be `"bar"`.
+    - `ignore_keys`: if given, parameters that have at least one of the
+      keys as substring will be ignored.
 
     Example
     -------
@@ -107,6 +114,8 @@ class MlFlowLauncher(fromconfig.launcher.Launcher):
         log_parameters = launch.get("log_parameters", True)
         path_config = launch.get("path_config", "config.json")
         path_command = launch.get("path_command", "launch.txt")
+        include_keys = launch.get("include_keys")
+        ignore_keys = launch.get("ignore_keys")
 
         # Log artifacts
         if log_artifacts:
@@ -121,8 +130,9 @@ class MlFlowLauncher(fromconfig.launcher.Launcher):
         # Log parameters
         if log_parameters:
             LOGGER.info("Logging parameters")
-            for key, value in fromconfig.utils.flatten(config):
-                mlflow.log_param(key=_sanitize(key), value=value)
+            params = get_params(config, ignore_keys, include_keys)
+            for idx in range(0, len(params), 100):
+                mlflow.log_params(dict(params[idx : idx + 100]))
 
         # Update config (remove used params if successive launches)
         launches = launches[1:] if launches else []
@@ -132,8 +142,22 @@ class MlFlowLauncher(fromconfig.launcher.Launcher):
         self.launcher(config=config, command=command)
 
 
-def _sanitize(s):
-    return str(s).replace("[", ".").replace("]", "")
+def get_params(config, ignore_keys=None, include_keys=None):
+    """Log param if coherent with ignore keys and include keys."""
+    params = []
+    for key, value in fromconfig.utils.flatten(config):
+        key = str(key).replace("[", ".").replace("]", "")
+        if include_keys and not any(k in key for k in include_keys):
+            continue
+        if include_keys:
+            for k in include_keys:
+                index = key.find(k)
+                if index != -1:
+                    key = key[index:]
+        if ignore_keys and any(k in key for k in ignore_keys):
+            continue
+        params.append((key, value))
+    return params
 
 
 def get_url(run) -> str:
