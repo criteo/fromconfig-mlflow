@@ -1,4 +1,4 @@
-"""MlFlow fromconfig plugin."""
+"""MlFlow Launcher."""
 
 from pathlib import Path
 from typing import Any
@@ -61,9 +61,6 @@ class MlFlowLauncher(fromconfig.launcher.Launcher):
     >>> launcher(config, "run")
     """
 
-    def __init__(self, launcher: fromconfig.launcher.Launcher):
-        super().__init__(launcher=launcher)
-
     def __call__(self, config: Any, command: str = ""):
         if mlflow.active_run() is not None:
             LOGGER.info(f"Active run found: {get_url(mlflow.active_run())}")
@@ -105,7 +102,7 @@ class MlFlowLauncher(fromconfig.launcher.Launcher):
         params = config.get("mlflow") or {}
         launches = params.get("launches") or []
         launches = [launches] if not isinstance(launches, list) else launches
-        launch = launches.pop(0) if launches else {}
+        launch = launches[0] if launches else {}
         log_artifacts = launch.get("log_artifacts", True)
         log_parameters = launch.get("log_parameters", True)
         path_config = launch.get("path_config", "config.json")
@@ -128,6 +125,7 @@ class MlFlowLauncher(fromconfig.launcher.Launcher):
                 mlflow.log_param(key=_sanitize(key), value=value)
 
         # Update config (remove used params if successive launches)
+        launches = launches[1:] if launches else []
         launches = launches if launches else [{}]
         launches[0] = fromconfig.utils.merge_dict({"log_artifacts": False, "log_parameters": False}, launches[0])
         config = fromconfig.utils.merge_dict(config, {"mlflow": {"launches": launches}})
@@ -135,7 +133,7 @@ class MlFlowLauncher(fromconfig.launcher.Launcher):
 
 
 def _sanitize(s):
-    return str(s).replace("[", ".").replace("]", ".")
+    return str(s).replace("[", ".").replace("]", "")
 
 
 def get_url(run) -> str:
