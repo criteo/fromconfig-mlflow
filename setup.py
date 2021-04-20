@@ -27,7 +27,7 @@ if __name__ == "__main__":
         data_files=[(".", ["requirements.txt", "README.md"])],
         dependency_links=[],
         description=long_description.split("\n")[0],
-        install_requires=["fromconfig", "mlflow"],
+        install_requires=["fromconfig>=0.3", "mlflow"],
         entry_points={"fromconfig0": ["mlflow = fromconfig_mlflow"]},
         long_description=long_description,
         long_description_content_type="text/markdown",

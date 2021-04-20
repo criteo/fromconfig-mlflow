@@ -124,10 +124,6 @@ class MlFlowLauncher(fromconfig.launcher.Launcher):
         # Log parameters
         if log_parameters:
             LOGGER.info("Logging parameters")
-
-            def _sanitize(s):
-                return s.replace("[", ".__").replace("]", "__.")
-
             for key, value in fromconfig.utils.flatten(config):
                 mlflow.log_param(key=_sanitize(key), value=value)
 
@@ -136,6 +132,10 @@ class MlFlowLauncher(fromconfig.launcher.Launcher):
         launches[0] = fromconfig.utils.merge_dict({"log_artifacts": False, "log_parameters": False}, launches[0])
         config = fromconfig.utils.merge_dict(config, {"mlflow": {"launches": launches}})
         self.launcher(config=config, command=command)
+
+
+def _sanitize(s):
+    return str(s).replace("[", ".").replace("]", ".")
 
 
 def get_url(run) -> str:

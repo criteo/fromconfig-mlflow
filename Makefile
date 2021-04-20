@@ -1,7 +1,6 @@
 install: ## [Local development] Upgrade pip, install requirements, install package.
 	python -m pip install -U pip setuptools wheel
 	python -m pip install -r requirements.txt
-	git clone https://github.com/criteo/fromconfig.git && cd fromconfig && git checkout feature/plugins && make install
 	python -m pip install -e .
 
 install-dev: ## [Local development] Install test requirements
