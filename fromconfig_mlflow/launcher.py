@@ -5,6 +5,7 @@ from typing import Any
 import json
 import logging
 import tempfile
+import os
 
 import fromconfig
 import mlflow
@@ -14,6 +15,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 _RUN_ID_ENV_VAR = "MLFLOW_RUN_ID"
+_MLFLOW_TRACKING_URI = "MLFLOW_TRACKING_URI"
 
 
 class MlFlowLauncher(fromconfig.launcher.Launcher):
@@ -55,6 +57,8 @@ class MlFlowLauncher(fromconfig.launcher.Launcher):
       logged parameter will be `"bar"`.
     - `ignore_keys`: if given, parameters that have at least one of the
       keys as substring will be ignored.
+    - `set_env_vars`: if given, mlflow environment variables are set, to
+      propagate the mlflow run id and tracking uri
 
     Example
     -------
@@ -116,6 +120,7 @@ class MlFlowLauncher(fromconfig.launcher.Launcher):
         path_command = launch.get("path_command", "launch.txt")
         include_keys = launch.get("include_keys")
         ignore_keys = launch.get("ignore_keys")
+        set_env_vars = launch.get("set_env_vars", False)
 
         # Log artifacts
         if log_artifacts:
@@ -134,12 +139,23 @@ class MlFlowLauncher(fromconfig.launcher.Launcher):
             for idx in range(0, len(params), 100):
                 mlflow.log_params(dict(params[idx : idx + 100]))
 
+        # A bit risky as environment variables are global, risk conflicts with
+        # another place that would set these env variables
+        if set_env_vars:
+            os.environ[_RUN_ID_ENV_VAR] = mlflow.active_run().info.run_id
+            os.environ[_MLFLOW_TRACKING_URI] = mlflow.tracking.get_tracking_uri()
+
         # Update config (remove used params if successive launches)
         launches = launches[1:] if launches else []
         launches = launches if launches else [{}]
         launches[0] = fromconfig.utils.merge_dict({"log_artifacts": False, "log_parameters": False}, launches[0])
         config = fromconfig.utils.merge_dict(config, {"mlflow": {"launches": launches}})
         self.launcher(config=config, command=command)
+
+        # Clean up the environment variables once not needed
+        if set_env_vars:
+            del os.environ[_RUN_ID_ENV_VAR]
+            del os.environ[_MLFLOW_TRACKING_URI]
 
 
 def get_params(config, ignore_keys=None, include_keys=None):
