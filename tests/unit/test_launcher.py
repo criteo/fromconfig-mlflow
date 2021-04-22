@@ -55,7 +55,10 @@ def test_launcher_is_discovered():
         ),
         pytest.param(
             {"log": ["mlflow", "mlflow"]},
-            {"run_name": "test", "launches": [{"log_parameters": True}, {"log_parameters": True, "set_env_vars": True}]},
+            {
+                "run_name": "test",
+                "launches": [{"log_parameters": True}, {"log_parameters": True, "set_env_vars": True}],
+            },
             {"start_run": {"kwargs": {"run_name": "test"}}},
             {"start_run": 1, "log_artifacts": 1},
             id="no-duplicate-log-artifacts",

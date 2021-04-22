@@ -4,8 +4,9 @@ from pathlib import Path
 from typing import Any
 import json
 import logging
-import tempfile
 import os
+import re
+import tempfile
 
 import fromconfig
 import mlflow
@@ -15,7 +16,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 _RUN_ID_ENV_VAR = "MLFLOW_RUN_ID"
-_MLFLOW_TRACKING_URI = "MLFLOW_TRACKING_URI"
+_TRACKING_URI_ENV_VAR = "MLFLOW_TRACKING_URI"
 
 
 class MlFlowLauncher(fromconfig.launcher.Launcher):
@@ -96,7 +97,6 @@ class MlFlowLauncher(fromconfig.launcher.Launcher):
             # Start MlFlow run, log information and launch
             with mlflow.start_run(run_id=run_id, run_name=run_name) as run:
                 LOGGER.info(f"Started run: {get_url(run)}")
-                config = fromconfig.utils.merge_dict(config, {"mlflow": {"run_id": run.info.run_id}})
                 self.log_and_launch(config=config, command=command)
 
     def log_and_launch(self, config: Any, command: str = ""):
@@ -114,13 +114,14 @@ class MlFlowLauncher(fromconfig.launcher.Launcher):
         launches = params.get("launches") or []
         launches = [launches] if not isinstance(launches, list) else launches
         launch = launches[0] if launches else {}
+        ignore_keys = launch.get("ignore_keys")
+        include_keys = launch.get("include_keys")
         log_artifacts = launch.get("log_artifacts", True)
         log_parameters = launch.get("log_parameters", True)
-        path_config = launch.get("path_config", "config.json")
         path_command = launch.get("path_command", "launch.txt")
-        include_keys = launch.get("include_keys")
-        ignore_keys = launch.get("ignore_keys")
+        path_config = launch.get("path_config", "config.json")
         set_env_vars = launch.get("set_env_vars", False)
+        set_run_id = launch.get("set_run_id", True)
 
         # Log artifacts
         if log_artifacts:
@@ -132,37 +133,50 @@ class MlFlowLauncher(fromconfig.launcher.Launcher):
                 file.write(f"fromconfig {path_config} - {command}")
             mlflow.log_artifacts(local_dir=dir_artifacts)
 
-        # Log parameters
+        # Log parameters by batches of 100
         if log_parameters:
             LOGGER.info("Logging parameters")
             params = get_params(config, ignore_keys, include_keys)
             for idx in range(0, len(params), 100):
                 mlflow.log_params(dict(params[idx : idx + 100]))
 
-        # A bit risky as environment variables are global, risk conflicts with
-        # another place that would set these env variables
+        # A bit risky as ENV variables are global, risk conflicts with
+        # another place that would set / use these
         if set_env_vars:
+            LOGGER.info(f"Setting ENV variables {_RUN_ID_ENV_VAR} and {_TRACKING_URI_ENV_VAR}")
             os.environ[_RUN_ID_ENV_VAR] = mlflow.active_run().info.run_id
-            os.environ[_MLFLOW_TRACKING_URI] = mlflow.tracking.get_tracking_uri()
+            os.environ[_TRACKING_URI_ENV_VAR] = mlflow.tracking.get_tracking_uri()
 
-        # Update config (remove used params if successive launches)
+        # Update launches to override config for future launches
         launches = launches[1:] if launches else []
         launches = launches if launches else [{}]
         launches[0] = fromconfig.utils.merge_dict({"log_artifacts": False, "log_parameters": False}, launches[0])
-        config = fromconfig.utils.merge_dict(config, {"mlflow": {"launches": launches}})
+        overrides = {"launches": launches}  # type: ignore
+
+        # Update run_id to override config for future launches
+        if set_run_id:
+            LOGGER.info("Setting mlflow.run_id in config")
+            overrides["run_id"] = mlflow.active_run().info.run_id
+
+        # Override MLFlow config for next launches of the same run
+        config = fromconfig.utils.merge_dict(config, {"mlflow": overrides})
         self.launcher(config=config, command=command)
 
         # Clean up the environment variables once not needed
         if set_env_vars:
+            LOGGER.info(f"Cleaning ENV variables {_RUN_ID_ENV_VAR} and {_TRACKING_URI_ENV_VAR}")
             del os.environ[_RUN_ID_ENV_VAR]
-            del os.environ[_MLFLOW_TRACKING_URI]
+            del os.environ[_TRACKING_URI_ENV_VAR]
+
+
+# log_params only accepts alphanumerics, period, space, dash, underscore
+_FORBIDDEN = re.compile(r"[^0-9a-zA-Z_\. \-/]+")
 
 
 def get_params(config, ignore_keys=None, include_keys=None):
     """Log param if coherent with ignore keys and include keys."""
     params = []
     for key, value in fromconfig.utils.flatten(config):
-        key = str(key).replace("[", ".").replace("]", "")
         if include_keys and not any(k in key for k in include_keys):
             continue
         if include_keys:
@@ -172,7 +186,7 @@ def get_params(config, ignore_keys=None, include_keys=None):
                     key = key[index:]
         if ignore_keys and any(k in key for k in ignore_keys):
             continue
-        params.append((key, value))
+        params.append((_FORBIDDEN.sub("_", key), value))
     return params
 
 
