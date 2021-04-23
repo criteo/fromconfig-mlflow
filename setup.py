@@ -35,5 +35,5 @@ if __name__ == "__main__":
         name="fromconfig_mlflow",
         packages=setuptools.find_packages(),
         tests_require=["pytest"],
-        url="https://github.com/guillaumegenthial/fromconfig-mlflow",
+        url="https://github.com/criteo/fromconfig-mlflow",
     )
