@@ -1,8 +1,7 @@
 """MlFlow Launcher."""
 
 from pathlib import Path
-from typing import Any
-import json
+from typing import Any, Iterable
 import logging
 import os
 import re
@@ -22,9 +21,8 @@ _TRACKING_URI_ENV_VAR = "MLFLOW_TRACKING_URI"
 class MlFlowLauncher(fromconfig.launcher.Launcher):
     """MlFlow Launcher.
 
-    To configure MlFlow, add a `mlflow` entry to your config.
-
-    You can set the following parameters
+    To configure MlFlow, add a `mlflow` entry to your config and set the
+    following parameters
 
     - `run_id`: if you wish to restart an existing run
     - `run_name`: if you wish to give a name to your new run
@@ -33,49 +31,55 @@ class MlFlowLauncher(fromconfig.launcher.Launcher):
       experiment
     - `artifact_location`: the location of the artifacts (config files)
 
-    Additionally, if you wish to call the `mlflow` launcher multiple
-    times during the launch (for example once before the parser, and
-    once after), you need to configure the different launches with the
-    special `launches` key (otherwise only the first launch will
-    actually log artifacts and parameters).
-
-    The `launches` key should be a list of dictionaries with the
-    following parameters
-
-    - `log_artifacts`: if `True` (default), will log the artifacts (the
-      config and command given to the launcher)
-    - `log_parameters`: if `True` (default) will log a flattened view of
-      the parameters
-    - `path_config`: if given, will write the config as an artifact with
-      that name (default is `config.json`)
-    - `path_command`: if given, will write the command as an artifact
-      with that name (default is `launch.txt`, using the `.txt`
-      extension because you can preview it on MlFlow).
-    - `include_keys`: if given, only log flattened parameters that have
-      one of these keys as substring. Also shorten the flattened
-      parameter to start at the first match. For example, if the config
-      is `{"foo": {"bar": 1}}` and `include_keys=("bar",)`, then the
-      logged parameter will be `"bar"`.
-    - `ignore_keys`: if given, parameters that have at least one of the
-      keys as substring will be ignored.
-    - `set_env_vars`: if given, mlflow environment variables are set, to
-      propagate the mlflow run id and tracking uri
-
-    Example
-    -------
-    >>> import fromconfig
-    >>> config = {
-    ...     "run": None,
-    ...     "launcher": {"log": ["logging", "mlflow"]},
-    ...     "mlflow": {"run_name": "test"}
-    ... }
-    >>> launcher = fromconfig.launcher.Launcher.fromconfig(config["launcher"])
-    >>> launcher(config, "run")
+    Attributes
+    ----------
+    log_artifacts : bool, optional
+        If True, save config and command as artifacts.
+    log_params : bool, optional
+        If True, log flattened config as parameters.
+    path_command : str, optional
+        Name for the command file
+    path_config : str, optional
+        Name for the config file.
+    set_env_vars : bool, optional
+        If True, set MlFlow environment variables.
+    set_run_id : bool, optional
+        If True, the run_id is overridden in the config.
+    ignore_keys : Iterable[str], optional
+        If given, don't log some parameters that have some substrings.
+    include_keys : Iterable[str], optional
+        If given, only log some parameters that have some substrings.
+        Also shorten the flattened parameter to start at the first
+        match. For example, if the config is `{"foo": {"bar": 1}}` and
+        `include_keys=("bar",)`, then the logged parameter will be
+        `"bar"`.
     """
+
+    def __init__(
+        self,
+        launcher: fromconfig.launcher.Launcher,
+        log_artifacts: bool = True,
+        log_params: bool = True,
+        path_command: str = "launch.sh",
+        path_config: str = "config.yaml",
+        set_env_vars: bool = False,
+        set_run_id: bool = True,
+        ignore_keys: Iterable[str] = None,
+        include_keys: Iterable[str] = None,
+    ):
+        super().__init__(launcher=launcher)
+        self.ignore_keys = ignore_keys
+        self.include_keys = include_keys
+        self.log_artifacts = log_artifacts
+        self.log_params = log_params
+        self.path_command = path_command
+        self.path_config = path_config
+        self.set_env_vars = set_env_vars
+        self.set_run_id = set_run_id
 
     def __call__(self, config: Any, command: str = ""):
         if mlflow.active_run() is not None:
-            LOGGER.info(f"Active run found: {get_url(mlflow.active_run())}")
+            print(f"Active run found: {get_url(mlflow.active_run())}")
             self.log_and_launch(config=config, command=command)
         else:
             # Create run from params in config
@@ -96,7 +100,7 @@ class MlFlowLauncher(fromconfig.launcher.Launcher):
 
             # Start MlFlow run, log information and launch
             with mlflow.start_run(run_id=run_id, run_name=run_name) as run:
-                LOGGER.info(f"Started run: {get_url(run)}")
+                print(f"Started run: {get_url(run)}")
                 self.log_and_launch(config=config, command=command)
 
     def log_and_launch(self, config: Any, command: str = ""):
@@ -109,61 +113,40 @@ class MlFlowLauncher(fromconfig.launcher.Launcher):
         command : str, optional
             Command
         """
-        # Extract params for this launch
-        params = config.get("mlflow") or {}
-        launches = params.get("launches") or []
-        launches = [launches] if not isinstance(launches, list) else launches
-        launch = launches[0] if launches else {}
-        ignore_keys = launch.get("ignore_keys")
-        include_keys = launch.get("include_keys")
-        log_artifacts = launch.get("log_artifacts", True)
-        log_parameters = launch.get("log_parameters", True)
-        path_command = launch.get("path_command", "launch.txt")
-        path_config = launch.get("path_config", "config.json")
-        set_env_vars = launch.get("set_env_vars", False)
-        set_run_id = launch.get("set_run_id", True)
-
         # Log artifacts
-        if log_artifacts:
-            LOGGER.info(f"Logging artifacts {path_config} and {path_command}")
+        if self.log_artifacts:
+            LOGGER.info(f"Logging artifacts {self.path_config} and {self.path_command}")
             dir_artifacts = tempfile.mkdtemp()
-            with Path(dir_artifacts, path_config).open("w") as file:
-                json.dump(config, file, indent=4)
-            with Path(dir_artifacts, path_command).open("w") as file:
-                file.write(f"fromconfig {path_config} - {command}")
+            fromconfig.dump(config, Path(dir_artifacts, self.path_config))
+            with Path(dir_artifacts, self.path_command).open("w") as file:
+                file.write(f"fromconfig {self.path_config} - {command}")
             mlflow.log_artifacts(local_dir=dir_artifacts)
 
         # Log parameters by batches of 100
-        if log_parameters:
-            LOGGER.info("Logging parameters")
-            params = get_params(config, ignore_keys, include_keys)
+        if self.log_params:
+            LOGGER.info("Logging params")
+            params = get_params(config, self.ignore_keys, self.include_keys)
             for idx in range(0, len(params), 100):
                 mlflow.log_params(dict(params[idx : idx + 100]))
 
         # A bit risky as ENV variables are global, risk conflicts with
         # another place that would set / use these
-        if set_env_vars:
+        if self.set_env_vars:
             LOGGER.info(f"Setting ENV variables {_RUN_ID_ENV_VAR} and {_TRACKING_URI_ENV_VAR}")
             os.environ[_RUN_ID_ENV_VAR] = mlflow.active_run().info.run_id
             os.environ[_TRACKING_URI_ENV_VAR] = mlflow.tracking.get_tracking_uri()
 
-        # Update launches to override config for future launches
-        launches = launches[1:] if launches else []
-        launches = launches if launches else [{}]
-        launches[0] = fromconfig.utils.merge_dict({"log_artifacts": False, "log_parameters": False}, launches[0])
-        overrides = {"launches": launches}  # type: ignore
-
         # Update run_id to override config for future launches
-        if set_run_id:
+        if self.set_run_id:
             LOGGER.info("Setting mlflow.run_id in config")
-            overrides["run_id"] = mlflow.active_run().info.run_id
+            run_id = mlflow.active_run().info.run_id
+            config = fromconfig.utils.merge_dict(config, {"mlflow": {"run_id": run_id}})
 
-        # Override MLFlow config for next launches of the same run
-        config = fromconfig.utils.merge_dict(config, {"mlflow": overrides})
+        # Launch
         self.launcher(config=config, command=command)
 
         # Clean up the environment variables once not needed
-        if set_env_vars:
+        if self.set_env_vars:
             LOGGER.info(f"Cleaning ENV variables {_RUN_ID_ENV_VAR} and {_TRACKING_URI_ENV_VAR}")
             del os.environ[_RUN_ID_ENV_VAR]
             del os.environ[_TRACKING_URI_ENV_VAR]

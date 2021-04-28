@@ -43,94 +43,119 @@ You should see
 
 We will assume that the tracking URI is `http://127.0.0.1:5000` from now on.
 
+Set the `MLFLOW_TRACKING_URI` environment variable
+
+```bash
+export MLFLOW_TRACKING_URI=http://127.0.0.1:5000
+```
+
 Given the following module
 
 ```python
+import mlflow
+
+
 class Model:
     def __init__(self, learning_rate: float):
         self.learning_rate = learning_rate
 
     def train(self):
         print(f"Training model with learning_rate {self.learning_rate}")
+        if mlflow.active_run():
+            mlflow.log_metric("learning_rate", self.learning_rate)
 ```
 
 and config files
 
+`config.yaml`
+
 ```yaml
-# config.yaml
 model:
   _attr_: foo.Model
-  learning_rate: "@params.learning_rate"
+  learning_rate: "${params.learning_rate}"
+```
 
-# params.yaml
+`params.yaml`
+
+```yaml
 params:
   learning_rate: 0.001
-
-# launcher.yaml
-mlflow:
-  tracking_uri: "http://127.0.0.1:5000"
-logging:
-  level: 20
-launcher:
-  log:
-    - logging
-    - mlflow
 ```
 
 Run
 
 ```bash
-fromconfig config.yaml params.yaml launcher.yaml - model - train
+fromconfig config.yaml params.yaml --launcher.log=mlflow - model - train
 ```
 
 which prints
 
 ```
-INFO:fromconfig.launcher.logger:- launcher.log[0]: logging
-INFO:fromconfig.launcher.logger:- launcher.log[1]: mlflow
-INFO:fromconfig.launcher.logger:- params.learning_rate: 0.001
-INFO:fromconfig.launcher.logger:- mlflow.tracking_uri: http://127.0.0.1:5000
-INFO:fromconfig.launcher.logger:- logging.level: 20
-INFO:fromconfig.launcher.logger:- model._attr_: foo.Model
-INFO:fromconfig.launcher.logger:- model.learning_rate: 0.001
-INFO:fromconfig_mlflow.launcher:Started new run: http://127.0.0.1:5000/experiments/0/runs/e5ae42827da041fc989aca024040c725
-INFO:fromconfig_mlflow.launcher:Logging artifacts config.json and launch.txt
-INFO:fromconfig_mlflow.launcher:Logging parameters
+Started run: http://127.0.0.1:5000/experiments/0/runs/7fe650dd99574784aec1e4b18fceb73f
 Training model with learning_rate 0.001
 ```
 
-If you navigate to `http://127.0.0.1:5000/experiments/0/runs/40ea35e951e942bc9f0b9c792c4ce1e7` you should see your parameters and configs.
+If you navigate to `http://127.0.0.1:5000/experiments/0/runs/7fe650dd99574784aec1e4b18fceb73f` you should see your parameters and configs.
 
 This example can be found in [`docs/examples/quickstart`](docs/examples/quickstart).
+
+You can also use a `launcher.yaml` file
+
+```yaml
+# Configure mlflow
+mlflow:
+  # tracking_uri: "http://127.0.0.1:5000"
+  # experiment_name: "test-experiment"
+  # run_name: test
+  # artifact_location: "path/to/artifacts"
+
+# Configure launcher (only change the log step)
+launcher:
+  log: mlflow
+```
+
+by running
+
+```bash
+fromconfig config.yaml params.yaml launcher.yaml - model - train
+```
 
 <a id="usage-reference"></a>
 ## Usage Reference
 
 <a id="options"></a>
 ### Options
-
-To configure MlFlow, add a `mlflow` entry to your config.
-
-You can set the following parameters
+To configure MlFlow, add a `mlflow` entry to your config and set the following parameters
 
 - `run_id`: if you wish to restart an existing run
 - `run_name`: if you wish to give a name to your new run
 - `tracking_uri`: to configure the tracking remote
-- `experiment_name`: to use a different experiment than the custom experiment
+- `experiment_name`: to use a different experiment than the custom
+  experiment
 - `artifact_location`: the location of the artifacts (config files)
 
-Additionally, if you wish to call the `mlflow` launcher multiple times during the launch (for example once before the parser, and once after), you need to configure the different launches with the special `launches` key (otherwise only the first launch will actually log artifacts and parameters).
+You can also set the following attributes
 
-The `launches` key should be a list of dictionaries with the following parameters
-
-- `log_artifacts`: if `True` (default), will log the artifacts (the config and command given to the launcher)
-- `log_parameters`: if `True` (default) will log a flattened view of the parameters
-- `path_config`: if given, will write the config as an artifact with that name (default is `config.json`)
-- `path_command`: if given, will write the command as an artifact with that name (default is `launch.txt`, using the `.txt` extension because you can preview it on MlFlow).
-- `include_keys`: if given, only log flattened parameters that have one of these keys as substring. Also shorten the flattened parameter to start at the first match. For example, if the config is `{"foo": {"bar": 1}}` and `include_keys=("bar",)`, then the logged parameter will be `"bar"`.
-- `ignore_keys`: if given, parameters that have at least one of the keys as substring will be ignored.
-
-See [the multi example](#multi).
+- log_artifacts : bool, optional
+      If True, save config and command as artifacts.
+- log_parameters : bool, optional
+      If True, log flattened config as parameters.
+- path_command : str, optional
+      Name for the command file
+- path_config : str, optional
+      Name for the config file.
+- set_env_vars : bool, optional
+      If True, set MlFlow environment variables.
+- set_run_id : bool, optional
+      If True, the run_id is overridden in the config.
+- ignore_keys : Iterable[str], optional
+      If given, don't log some parameters that have some substrings.
+- include_keys : Iterable[str], optional
+      If given, only log some parameters that have some substrings.
+      Also shorten the flattened parameter to start at the first
+      match. For example, if the config is `{"foo": {"bar": 1}}` and
+      `include_keys=("bar",)`, then the logged parameter will be
+      `"bar"`.
 
 
 <a id="examples"></a>
@@ -139,31 +164,38 @@ See [the multi example](#multi).
 <a id="multi"></a>
 ### Multi
 
+In this example, we show how to call and configure multiple launches of the `MlFlowLauncher`. We first log the non-parsed configs, then parse, then log both the parsed configs and the flattened parameters.
+
 Re-using the [quickstart](#quickstart) code, modify the `launcher.yaml` file
 
 ```yaml
-mlflow:
-  tracking_uri: "http://127.0.0.1:5000"
-  launches:
-    -
-      log_artifacts: true
-      log_parameters: false
-      path_config: "config.json"
-      path_command: "launch_config.txt"
-    -
-      log_artifacts: true
-      log_parameters: true
-      path_config: "parsed.json"
-      path_command: "launch_parsed.json"
+# Configure logging
 logging:
   level: 20
+
+# Configure mlflow
+mlflow:
+  # tracking_uri: "http://127.0.0.1:5000"
+  # experiment_name: "test-experiment"
+  # run_name: test
+  # artifact_location: "path/to/artifacts"
+
 launcher:
   parse:
-    - mlflow
-    - parser
-  log:
-    - logging
-    - mlflow
+    - _attr_: fromconfig_mlflow.MlFlowLauncher  # Log non-parsed config
+      log_artifacts: true
+      log_params: false
+      path_config: "config.yaml"
+      path_command: "config_launch.sh"
+    - parser  # Parse config
+    - _attr_: fromconfig_mlflow.MlFlowLauncher  # Log parsed config and parameters
+      log_artifacts: true
+      log_params: true
+      path_config: "parsed.yaml"
+      path_command: "parsed_launch.sh"
+      include_keys:  # Only parameters that start with model will be logged as parameters
+        - model
+
 ```
 
 and run
@@ -173,6 +205,6 @@ fromconfig config.yaml params.yaml launcher.yaml - model - train
 ```
 
 If you navigate to the MlFlow run, you should see
-- the parameters, a flattened version of the *parsed* config (`model.learning_rate` is `0.001` and not `@params.learning_rate`)
-- the original config, saved as `config.json`
-- the parsed config, saved as `parsed.json`
+- the parameters, a flattened version of the *parsed* config (`model.learning_rate` is `0.001` and not `${params.learning_rate}`)
+- the original config, saved as `config.yaml`
+- the parsed config, saved as `parsed.yaml`
