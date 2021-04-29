@@ -29,7 +29,7 @@ if __name__ == "__main__":
         dependency_links=[],
         description=long_description.split("\n")[0],
         entry_points={"fromconfig0": ["mlflow = fromconfig_mlflow"]},
-        install_requires=["fromconfig>=0.3", "mlflow"],
+        install_requires=["fromconfig>=0.5", "mlflow"],
         long_description=long_description,
         long_description_content_type="text/markdown",
         name="fromconfig_mlflow",

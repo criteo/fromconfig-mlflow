@@ -1,9 +1,8 @@
 # pylint: disable=all
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __author__ = "Criteo"
 
-
-MAJOR = __version__.split(".")[0]
-MINOR = __version__.split(".")[1]
-PATCH = __version__.split(".")[2]
+__major__ = __version__.split(".")[0]
+__minor__ = __version__.split(".")[1]
+__patch__ = __version__.split(".")[2]
