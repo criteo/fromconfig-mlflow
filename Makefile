@@ -16,10 +16,11 @@ black: ## [Local development] Auto-format python code using black
 
 test: ## [Local development] Run unit tests, doctest and notebooks
 	python -m pytest -v --cov=fromconfig_mlflow --cov-report term-missing --cov-fail-under 95 tests/unit
-	python -m pytest --doctest-modules -v fromconfig_mlflow
+# 	python -m pytest --doctest-modules -v fromconfig_mlflow
 	$(MAKE) examples
 
 examples:  ## [Doc] Run all examples
+	cd docs/examples/quickstart && fromconfig config.yaml params.yaml --launcher.log=mlflow - model - train
 	cd docs/examples/quickstart && fromconfig config.yaml params.yaml launcher.yaml - model - train
 	cd docs/examples/multi && fromconfig config.yaml params.yaml launcher.yaml - model - train
 

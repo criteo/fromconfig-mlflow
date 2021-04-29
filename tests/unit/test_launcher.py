@@ -30,7 +30,7 @@ def test_launcher_is_discovered():
             {"experiment_name": "test"},
             {"start_run": {"kwargs": {"run_name": None}}},
             {"start_run": 1, "log_artifacts": 1},
-            id="default",
+            id="experiment_name",
         ),
         pytest.param(
             {"log": "mlflow"},
@@ -43,24 +43,31 @@ def test_launcher_is_discovered():
             {"log": ["mlflow", "mlflow"]},
             {"run_name": "test"},
             {"start_run": {"kwargs": {"run_name": "test"}}},
-            {"start_run": 1, "log_artifacts": 1},
-            id="no-duplicate",
+            {"start_run": 1, "log_artifacts": 2},
+            id="duplicate",
         ),
         pytest.param(
-            {"log": ["mlflow", "mlflow"]},
-            {"run_name": "test", "launches": [{"log_artifacts": True}, {"log_artifacts": True}]},
+            {
+                "log": [
+                    {"_attr_": "fromconfig_mlflow.MlFlowLauncher", "log_params": False},
+                    {"_attr_": "fromconfig_mlflow.MlFlowLauncher", "log_params": True},
+                ]
+            },
+            {"run_name": "test"},
             {"start_run": {"kwargs": {"run_name": "test"}}},
-            {"start_run": 1, "log_artifacts": 2},
+            {"start_run": 1, "log_artifacts": 2, "log_params": 1},
             id="duplicate-with-launches-param",
         ),
         pytest.param(
-            {"log": ["mlflow", "mlflow"]},
             {
-                "run_name": "test",
-                "launches": [{"log_parameters": True}, {"log_parameters": True, "set_env_vars": True}],
+                "log": [
+                    {"_attr_": "fromconfig_mlflow.MlFlowLauncher", "log_artifacts": False, "set_env_vars": True},
+                    {"_attr_": "fromconfig_mlflow.MlFlowLauncher", "log_artifacts": True},
+                ]
             },
+            {"run_name": "test"},
             {"start_run": {"kwargs": {"run_name": "test"}}},
-            {"start_run": 1, "log_artifacts": 1},
+            {"start_run": 1, "log_artifacts": 1, "log_params": 2},
             id="no-duplicate-log-artifacts",
         ),
     ],
@@ -85,7 +92,7 @@ def test_launcher(launcher, params, expected, counts, monkeypatch):
 
     # Create config, launcher, and launch
     config = {"run": None, "launcher": launcher, "mlflow": params}
-    launcher = fromconfig.launcher.Launcher.fromconfig(config["launcher"])
+    launcher = fromconfig.launcher.DefaultLauncher.fromconfig(config.pop("launcher"))
     launcher(config, "run")
 
     def _check_expected(left, right):
