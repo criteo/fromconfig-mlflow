@@ -37,7 +37,7 @@ class StartRunLauncher(fromconfig.launcher.Launcher):
     """
 
     def __init__(
-        self, launcher: fromconfig.launcher.Launcher = None, set_env_vars: bool = True, set_run_id: bool = True,
+        self, launcher: fromconfig.launcher.Launcher = None, set_env_vars: bool = True, set_run_id: bool = False,
     ):
         super().__init__(launcher=launcher)
         self.set_env_vars = set_env_vars

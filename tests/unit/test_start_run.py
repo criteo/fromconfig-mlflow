@@ -70,7 +70,7 @@ def test_launcher_start_run_env_variables_state():
 @pytest.mark.parametrize(
     "params, expected",
     [
-        pytest.param({}, ["MLFLOW_RUN_ID", "MLFLOW_TRACKING_URI", "run_id"], id="default"),
+        pytest.param({}, ["MLFLOW_RUN_ID", "MLFLOW_TRACKING_URI"], id="default"),
         pytest.param({"set_env_vars": False, "set_run_id": False}, [], id="set-env-vars-false"),
         pytest.param(
             {"set_env_vars": True, "set_run_id": False},
