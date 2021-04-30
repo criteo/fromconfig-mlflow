@@ -1,13 +1,16 @@
-# FromConfig MlFlow
+# FromConfig MlFlow <!-- {docsify-ignore} -->
 [![pypi](https://img.shields.io/pypi/v/fromconfig-mlflow.svg)](https://pypi.python.org/pypi/fromconfig-mlflow)
 [![ci](https://github.com/criteo/fromconfig-mlflow/workflows/Continuous%20integration/badge.svg)](https://github.com/criteo/fromconfig-mlflow/actions?query=workflow%3A%22Continuous+integration%22)
 
 A [fromconfig](https://github.com/criteo/fromconfig) `Launcher` for [MlFlow](https://www.mlflow.org) support.
 
+
 <!-- MarkdownTOC -->
 
 - [Install](#install)
 - [Quickstart](#quickstart)
+- [MlFlow server](#mlflow-server)
+- [Configure MlFlow](#configure-mlflow)
 - [Artifacts and Parameters](#artifacts-and-parameters)
 - [Usage-Reference](#usage-reference)
   - [`StartRunLauncher`](#startrunlauncher)
@@ -15,6 +18,7 @@ A [fromconfig](https://github.com/criteo/fromconfig) `Launcher` for [MlFlow](htt
   - [`LogParamsLauncher`](#logparamslauncher)
 
 <!-- /MarkdownTOC -->
+
 
 <a id="install"></a>
 ## Install
@@ -26,32 +30,19 @@ pip install fromconfig_mlflow
 <a id="quickstart"></a>
 ## Quickstart
 
-Once installed, the launcher is available with the name `mlflow`.
-
-Start a local MlFlow server with
+To activate `MlFlow` login, simply add `--launcher.log=mlflow` to your command
 
 ```bash
-mlflow server
+fromconfig config.yaml params.yaml --launcher.log=mlflow - model - train
 ```
 
-You should see
+With
 
-```
-[INFO] Starting gunicorn 20.0.4
-[INFO] Listening at: http://127.0.0.1:5000
-```
-
-We will assume that the tracking URI is `http://127.0.0.1:5000` from now on.
-
-Set the `MLFLOW_TRACKING_URI` environment variable
-
-```bash
-export MLFLOW_TRACKING_URI=http://127.0.0.1:5000
-```
-
-Given the following module
+`model.py`
 
 ```python
+"""Dummy Model."""
+
 import mlflow
 
 
@@ -65,13 +56,11 @@ class Model:
             mlflow.log_metric("learning_rate", self.learning_rate)
 ```
 
-and config files
-
 `config.yaml`
 
 ```yaml
 model:
-  _attr_: foo.Model
+  _attr_: model.Model
   learning_rate: "${params.learning_rate}"
 ```
 
@@ -82,22 +71,54 @@ params:
   learning_rate: 0.001
 ```
 
-Run
-
-```bash
-fromconfig config.yaml params.yaml --launcher.log=mlflow - model - train
-```
-
-which prints
+It should print
 
 ```
 Started run: http://127.0.0.1:5000/experiments/0/runs/7fe650dd99574784aec1e4b18fceb73f
 Training model with learning_rate 0.001
 ```
 
-If you navigate to `http://127.0.0.1:5000/experiments/0/runs/7fe650dd99574784aec1e4b18fceb73f` you should the logged metric `learning_rate`.
+If you navigate to `http://127.0.0.1:5000/experiments/0/runs/7fe650dd99574784aec1e4b18fceb73f` you should see your the logged `learning_rate` metric.
 
-You can also use a `launcher.yaml` file
+<a id="mlflow-server"></a>
+## MlFlow server
+
+To setup a local MlFlow tracking server, run
+
+```bash
+mlflow server
+```
+
+which should print
+
+```
+[INFO] Starting gunicorn 20.0.4
+[INFO] Listening at: http://127.0.0.1:5000
+```
+
+We will assume that the tracking URI is `http://127.0.0.1:5000` from now on.
+
+
+<a id="configure-mlflow"></a>
+## Configure MlFlow
+
+You can set the tracking URI either via an environment variable or via the config.
+
+To set the `MLFLOW_TRACKING_URI` environment variable
+
+```bash
+export MLFLOW_TRACKING_URI=http://127.0.0.1:5000
+```
+
+Alternatively, you can set the `mlflow.tracking_uri` config key either via command line with
+
+```bash
+fromconfig config.yaml params.yaml --launcher.log=mlflow --mlflow.tracking_uri="http://127.0.0.1:5000" - model - train
+```
+
+or in a config file with
+
+`launcher.yaml`
 
 ```yaml
 # Configure mlflow
@@ -108,17 +129,16 @@ mlflow:
   # run_name: test  # To give a name to your new run
   # artifact_location: "path/to/artifacts"  # Used only when creating a new experiment
 
+# Configure launcher
 launcher:
-  log: mlflow  # Start run
+  log: mlflow
 ```
 
-by running
+and run
 
 ```bash
 fromconfig config.yaml params.yaml launcher.yaml - model - train
 ```
-
-This example can be found in [`docs/examples/quickstart`](docs/examples/quickstart).
 
 <a id="artifacts-and-parameters"></a>
 ## Artifacts and Parameters
@@ -146,11 +166,11 @@ mlflow:
 launcher:
   log:
     - logging
-    - mlflow  # Start run
+    - mlflow
   parse:
-    - mlflow_log_artifacts  # Log config.yaml and launch.sh
-    - parser  # Parse config
-    - mlflow_log_params  # Log flattened config as run parameters
+    - mlflow.log_artifacts
+    - parser
+    - mlflow.log_params
 ```
 
 and run
@@ -159,11 +179,18 @@ and run
 fromconfig config.yaml params.yaml launcher.yaml - model - train
 ```
 
-If you navigate to the MlFlow run, you should see
-- the original config (before parsing), saved as `config.yaml`, logged by `mlflow_log_artifacts`
-- the parameters, a flattened version of the *parsed* config (`model.learning_rate` is `0.001` and not `${params.learning_rate}`) logged by `mlflow_log_params`.
+which prints
 
-This example can be found in [`docs/examples/artifacts-params`](docs/examples/artifacts-params).
+```
+INFO:fromconfig_mlflow.launcher:Started run: http://127.0.0.1:5000/experiments/0/runs/<MLFLOW_RUN_ID>
+Training model with learning_rate 0.001
+```
+
+If you navigate to the MlFlow run URL, you should see
+- the parameters, a flattened version of the *parsed* config (`model.learning_rate` is `0.001` and not `${params.learning_rate}`)
+- the original config, saved as `config.yaml`
+- the parsed config, saved as `parsed.yaml`
+
 
 <a id="usage-reference"></a>
 ## Usage-Reference
@@ -182,13 +209,16 @@ To configure MlFlow, add a `mlflow` entry to your config and set the following p
 
 Additionally, the launcher can be initialized with the following attributes
 
-- `set_env_vars`: if True (default), set `MLFLOW_RUN_ID` and `MLFLOW_TRACKING_URI`
-- `set_run_id`: if True (default), set `mlflow.run_id` in config.
+- `set_env_vars`: if True (default is `True`), set `MLFLOW_RUN_ID` and `MLFLOW_TRACKING_URI`
+- `set_run_id`: if True (default is `False`), set `mlflow.run_id` in config.
 
-
-For example
+For example,
 
 ```yaml
+# Configure logging
+logging:
+  level: 20
+
 # Configure mlflow
 mlflow:
   # tracking_uri: "http://127.0.0.1:5000"  # Or set env variable MLFLOW_TRACKING_URI
@@ -197,6 +227,7 @@ mlflow:
   # run_name: test  # To give a name to your new run
   # artifact_location: "path/to/artifacts"  # Used only when creating a new experiment
 
+# Configure Launcher
 launcher:
   log:
     - logging
@@ -204,6 +235,7 @@ launcher:
       set_env_vars: true
       set_run_id: true
 ```
+
 
 <a id="logartifactslauncher"></a>
 ### `LogArtifactsLauncher`
@@ -216,16 +248,29 @@ The launcher can be initialized with the following attributes
 For example,
 
 ```yaml
+# Configure logging
+logging:
+  level: 20
+
+# Configure mlflow
+mlflow:
+  # tracking_uri: "http://127.0.0.1:5000"  # Or set env variable MLFLOW_TRACKING_URI
+  # experiment_name: "test-experiment"  # Which experiment to use
+  # run_id: 12345  # To restore a previous run
+  # run_name: test  # To give a name to your new run
+  # artifact_location: "path/to/artifacts"  # Used only when creating a new experiment
+
+# Configure launcher
 launcher:
   log:
     - logging
     - mlflow
   parse:
-    - _attr_: mlflow_log_artifacts
+    - _attr_: mlflow.log_artifacts
       path_command: launch.sh
       path_config: config.yaml
     - parser
-    - _attr_: mlflow_log_artifacts
+    - _attr_: mlflow.log_artifacts
       path_command: null
       path_config: parsed.yaml
 ```
@@ -238,3 +283,30 @@ The launcher will use `include_keys` and `ignore_keys`  if present in the config
 
 - `ignore_keys` : If given, don't log some parameters that have some substrings.
 - `include_keys` : If given, only log some parameters that have some substrings. Also shorten the flattened parameter to start at the first match. For example, if the config is `{"foo": {"bar": 1}}` and `include_keys=("bar",)`, then the logged parameter will be `"bar"`.
+
+For example,
+
+```yaml
+# Configure logging
+logging:
+  level: 20
+
+# Configure mlflow
+mlflow:
+  # tracking_uri: "http://127.0.0.1:5000"  # Or set env variable MLFLOW_TRACKING_URI
+  # experiment_name: "test-experiment"  # Which experiment to use
+  # run_id: 12345  # To restore a previous run
+  # run_name: test  # To give a name to your new run
+  # artifact_location: "path/to/artifacts"  # Used only when creating a new experiment
+  include_keys:  # Only log params that match *model*
+    - model
+
+# Configure launcher
+launcher:
+  log:
+    - logging
+    - mlflow
+  parse:
+    - parser
+    - mlflow.log_params
+```

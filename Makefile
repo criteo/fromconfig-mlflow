@@ -20,9 +20,12 @@ test: ## [Local development] Run unit tests, doctest and notebooks
 	$(MAKE) examples
 
 examples:  ## [Doc] Run all examples
-	cd docs/examples/quickstart && fromconfig config.yaml params.yaml --launcher.log=mlflow - model - train
-	cd docs/examples/quickstart && fromconfig config.yaml params.yaml launcher.yaml - model - train
-	cd docs/examples/artifacts-params && fromconfig config.yaml params.yaml launcher.yaml - model - train
+	cd docs/example/ && fromconfig config.yaml params.yaml --launcher.log=mlflow - model - train
+	cd docs/example/ && fromconfig config.yaml params.yaml launcher.yaml - model - train
+	cd docs/example/ && fromconfig config.yaml params.yaml launcher_start.yaml - model - train
+	cd docs/example/ && fromconfig config.yaml params.yaml launcher_artifacts.yaml - model - train
+	cd docs/example/ && fromconfig config.yaml params.yaml launcher_params.yaml - model - train
+	cd docs/example/ && fromconfig config.yaml params.yaml launcher_artifacts_params.yaml - model - train
 
 venv-lint-test: ## [Continuous integration] Install in venv and run lint and test
 	python3.6 -m venv .env && . .env/bin/activate && make install install-dev lint test && rm -rf .env
