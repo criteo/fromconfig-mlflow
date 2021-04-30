@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and this project adheres to [Semantic Versioning](https://semver.org).
 
 
+## [0.3.1] - 2021-04-30
+
+### Added
+### Changed
+- Default of `set_run_id` is now False.
+
+### Deprecated
+### Removed
+### Fixed
+### Security
+
+
 ## [0.3.0] - 2021-04-30
 
 ### Added
