@@ -29,7 +29,9 @@ if __name__ == "__main__":
         dependency_links=[],
         description=long_description.split("\n")[0],
         entry_points={"fromconfig0": ["mlflow = fromconfig_mlflow"]},
-        install_requires=["fromconfig>=0.5", "mlflow"],
+        # "sqlparse>=0.3.1" is not listed as a depepndency of mlflow-skinny 
+        # 1.23.1 (the last version supporting Python 3.6)
+        install_requires=["fromconfig>=0.5", "mlflow-skinny", "sqlparse>=0.3.1"],
         long_description=long_description,
         long_description_content_type="text/markdown",
         name="fromconfig_mlflow",
