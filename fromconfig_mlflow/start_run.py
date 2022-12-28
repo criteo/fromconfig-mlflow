@@ -112,4 +112,4 @@ class StartRunLauncher(fromconfig.launcher.Launcher):
 
 
 def get_url(run) -> str:
-    return f"{mlflow.get_tracking_uri()}/experiments/{run.info.experiment_id}/runs/{run.info.run_id}"
+    return f"{mlflow.get_tracking_uri()}/#/experiments/{run.info.experiment_id}/runs/{run.info.run_id}"
